@@ -9,14 +9,13 @@ steps:
   volumes:
   - name: docker-certs
     path: /certs
-  # extra_hosts:
-  # - "docker:host-gateway"
+  extra_hosts:
+  - "docker:host-gateway"
   environment:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_CERT_PATH: /certs/client
     DOCKER_TLS_VERIFY: "1"
   commands:
-  - echo "172.17.0.1 docker" >> /etc/hosts
   - env
   - sleep infinity
   - COMMIT_HASH=$(echo $CI_COMMIT_SHA | cut -c1-8)
