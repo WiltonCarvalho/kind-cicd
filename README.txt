@@ -114,17 +114,20 @@ kubectl exec -it gitea-0 -- su-exec git /usr/local/bin/gitea admin user generate
   git push --set-upstream origin main
 )
 
-add gitea token to argocd/argocd-creds.yaml
+Add Gitea token to argocd/argocd-creds.yaml
 
 kubectl apply -f argocd/argocd-creds.yaml
 kubectl apply -f argocd/argocd-application.yaml
 
 google-chrome http://gitea.172.31.255.254.sslip.io/admin/applications
-Drone Oauth2 App
+
+Create a Gitea Oauth2 App for Drone
 Redirect URI: http://drone.172.31.255.254.sslip.io/login
-Add Secret to drone/drone.env
+Add Key and Secret to drone/drone.env
 
 kubectl apply -k drone
 
 google-chrome drone.172.31.255.254.sslip.io
+
+Set the repo as trusted in Drone repo settings
 
