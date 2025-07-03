@@ -1,0 +1,85 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: drone-runner
+  name: drone-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drone-runner
+  template:
+    metadata:
+      labels:
+        app: drone-runner
+    spec:
+      restartPolicy: Always
+      volumes:
+      - name: docker-certs
+        emptyDir: {}
+      containers:
+      - name: runner
+        image: drone/drone-runner-docker:1
+        command:
+        - sh
+        - -c
+        - |
+          while ! nc -z localhost 2376 </dev/null; do echo 'waiting for docker daemon...'; sleep 5; done;
+          exec /bin/drone-runner-docker
+        envFrom:
+        - secretRef:
+            name: drone-env
+        env:
+        - name: TZ
+          value: "America/Sao_Paulo"
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DOCKER_HOST
+          value: tcp://localhost:2376
+        - name: DOCKER_CERT_PATH
+          value: /certs/client
+        - name: DOCKER_TLS_VERIFY
+          value: "1"
+        - name: DRONE_RUNNER_NAME
+          value: $(POD_NAME)
+        - name: DRONE_RUNNER_CAPACITY
+          value: "2"
+        - name: DRONE_RPC_PROTO
+          valueFrom:
+            secretKeyRef:
+              name: drone-env
+              key: DRONE_SERVER_PROTO
+        - name: DRONE_RPC_HOST
+          valueFrom:
+            secretKeyRef:
+              name: drone-env
+              key: DRONE_SERVER_HOST
+        - name: DRONE_RPC_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: drone-env
+              key: DRONE_RPC_SECRET
+        volumeMounts:
+        - name: docker-certs
+          mountPath: /certs
+      - name: dind
+        image: docker:28-dind
+        command:
+        - dockerd-entrypoint.sh
+        - --insecure-registry=registry.172.31.255.201.sslip.io
+        env:
+        - name: DOCKER_TLS_CERTDIR
+          value: /certs
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: docker-certs
+          mountPath: /certs

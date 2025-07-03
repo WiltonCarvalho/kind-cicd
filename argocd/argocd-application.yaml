@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: whoami
+  namespace: argocd
+spec:
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: .
+    repoURL: http://gitea.172.31.255.254.sslip.io/root/whoami
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

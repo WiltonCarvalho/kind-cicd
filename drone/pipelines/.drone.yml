@@ -1,0 +1,27 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+steps:
+- name: build
+  image: docker:28-cli
+  volumes:
+  - name: docker-certs
+    path: /certs
+  extra_hosts:
+  - "docker:host-gateway"
+  environment:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_CERT_PATH: /certs/client
+    DOCKER_TLS_VERIFY: "1"
+  commands:
+  - env
+  - COMMIT_HASH=$(echo $CI_COMMIT_SHA | cut -c1-8)
+  - docker build -t registry.172.31.255.201.sslip.io/$DRONE_REPO_NAME:$COMMIT_HASH . --progress=plain
+  - docker push registry.172.31.255.201.sslip.io/$DRONE_REPO_NAME:$COMMIT_HASH
+
+volumes:
+- name: docker-certs
+  host:
+    path: /certs

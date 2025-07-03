@@ -1,0 +1,168 @@
+# kubectl apply -k gitea
+# kubectl logs gitea-0
+# kubectl exec -it gitea-0 -- su-exec git /usr/local/bin/gitea admin sendmail --title "Hello from Gitea" --content "This is a test"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: gitea
+  name: gitea
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      terminationGracePeriodSeconds: 30
+      initContainers:
+      - name: init
+        image: postgres:16-alpine
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          export PGPASSWORD=$POSTGRES_PASSWORD
+          while ! psql -w -h gitea-postgres.default.svc.cluster.local -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT 1';
+            do echo 'Waiting for Postgres...'; sleep 5;
+          done
+        envFrom:
+        - secretRef:
+            name: gitea-postgres-env
+      containers:
+      - name: gitea
+        image: gitea/gitea:1.22.4
+        ports:
+        - containerPort: 3000
+          name: gitea-http
+        - containerPort: 22
+          name: gitea-ssh
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        env:
+        - name: TZ
+          value: "America/Sao_Paulo"
+        envFrom:
+        - secretRef:
+            name: gitea-env
+        command:
+        - sh
+        - -c
+        - |
+          cat <<'EOF'>> /etc/s6/gitea/setup
+          su-exec git /usr/local/bin/gitea migrate
+          su-exec git /usr/local/bin/gitea admin user create \
+            --username ${GITEA_ADMIN} \
+            --password ${GITEA_ADMIN_PASSWORD} \
+            --email ${GITEA_ADMIN_EMAIL} \
+            --admin --must-change-password=false
+          EOF
+          exec /usr/bin/entrypoint /bin/s6-svscan /etc/s6
+        # command:
+        # - sh
+        # - -c
+        # - |
+        #   shutdown() {
+        #     kill -TERM "$pid"
+        #     wait "$pid"
+        #     exit 0
+        #   }
+        #   trap 'shutdown' SIGINT SIGTERM
+        #   sleep infinity &
+        #   pid=$!
+        #   wait "$pid"
+        startupProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /api/healthz
+            port: gitea-http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/healthz
+            port: gitea-http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/healthz
+            port: gitea-http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 20Gi
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: gitea
+  name: gitea-http
+spec:
+  selector:
+    app: gitea
+  ports:
+  - name: gitea-http
+    port: 3000
+    protocol: TCP
+    targetPort: gitea-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: gitea
+  name: gitea-ssh
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 172.31.255.205
+  ports:
+  - name: gitea-ssh
+    port: 443
+    protocol: TCP
+    targetPort: gitea-ssh
+  selector:
+    app: gitea
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: gitea
+  name: gitea
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: gitea.172.31.255.254.sslip.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: gitea-http
+            port:
+              name: gitea-http
+        path: /
+        pathType: Prefix

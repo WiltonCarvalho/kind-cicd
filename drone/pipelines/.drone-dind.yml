@@ -1,0 +1,49 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+steps:
+- name: pre_build
+  image: docker:28-cli
+  volumes:
+  - name: dockersock
+    path: /var/run
+  commands:
+  - |
+    tries=0
+    d_timeout=60
+    until docker info >/dev/null 2>&1; do
+      if [ "$tries" -gt "$d_timeout" ]; then
+        echo "[$(date)] Timed out trying to connect to dockerd" >&2;
+        exit 1;
+      fi
+      tries=$(( $tries + 1 ));
+      sleep 1;
+    done
+  - env
+
+- name: build
+  image: docker:28-cli
+  volumes:
+  - name: dockersock
+    path: /var/run
+  commands:
+  - COMMIT_HASH=$(echo $CI_COMMIT_SHA | cut -c1-8)
+  - docker build -t registry.172.31.255.201.sslip.io/$DRONE_REPO_NAME:$COMMIT_HASH . --progress=plain
+  - docker push registry.172.31.255.201.sslip.io/$DRONE_REPO_NAME:$COMMIT_HASH
+
+services:
+- name: docker
+  image: docker:28-dind
+  privileged: true
+  entrypoint:
+  - dockerd-entrypoint.sh
+  - --insecure-registry=registry.172.31.255.201.sslip.io
+  volumes:
+  - name: dockersock
+    path: /var/run
+
+volumes:
+- name: dockersock
+  temp: {}

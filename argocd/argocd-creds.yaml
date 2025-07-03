@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  annotations:
+    managed-by: argocd.argoproj.io
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+  name: gitea-creds
+  namespace: argocd
+stringData:
+  password: 09c7aa2a5b64183bab99de4ddaca1d6ab009badb
+  url: http://gitea.172.31.255.254.sslip.io
+  username: ci

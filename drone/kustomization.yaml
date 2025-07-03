@@ -1,0 +1,10 @@
+kind: Kustomization
+resources:
+- drone.yaml
+- runner.yaml
+secretGenerator:
+- name: drone-env
+  envs:
+  - drone.env
+generatorOptions:
+  disableNameSuffixHash: true

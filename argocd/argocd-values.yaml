@@ -1,0 +1,14 @@
+---
+global:
+  domain: argocd.172.31.255.254.sslip.io
+server:
+  ingress:
+    enabled: true
+    https: false
+    ingressClassName: nginx
+configs:
+  params:
+    server.insecure: true
+  cm:
+    exec.enabled: true
+

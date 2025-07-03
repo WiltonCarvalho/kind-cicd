@@ -1,0 +1,118 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: drone
+  name: drone
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: drone
+  template:
+    metadata:
+      labels:
+        app: drone
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: drone
+        image: drone/drone:2
+        ports:
+        - containerPort: 80
+          name: drone-http
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        env:
+        - name: TZ
+          value: "America/Sao_Paulo"
+        envFrom:
+        - secretRef:
+            name: drone-env
+        # command:
+        # - sh
+        # - -c
+        # - |
+        #   shutdown() {
+        #     kill -TERM "$pid"
+        #     wait "$pid"
+        #     exit 0
+        #   }
+        #   trap 'shutdown' SIGINT SIGTERM
+        #   sleep infinity &
+        #   pid=$!
+        #   wait "$pid"
+        startupProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /healthz
+            port: drone-http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: drone-http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: drone-http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 20Gi
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: drone
+  name: drone-http
+spec:
+  selector:
+    app: drone
+  ports:
+  - name: drone-http
+    port: 80
+    protocol: TCP
+    targetPort: drone-http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: drone
+  name: drone
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: drone.172.31.255.254.sslip.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: drone-http
+            port:
+              name: drone-http
+        path: /
+        pathType: Prefix

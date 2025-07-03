@@ -1,0 +1,38 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+steps:
+- name: build
+  image: eclipse-temurin:17-jdk
+  commands:
+  - env
+  - ./gradlew clean build -i -x jar
+
+- name: extract-spring-layers
+  image: eclipse-temurin:17-jdk
+  commands:
+  - JAR_FILE="build/libs/*.jar"
+  - java -Djarmode=tools -jar $JAR_FILE extract --layers --launcher --destination build/extract
+
+- name: dockerbuild
+  image: docker:28-cli
+  volumes:
+  - name: docker-certs
+    path: /certs
+  extra_hosts:
+  - "docker:host-gateway"
+  environment:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_CERT_PATH: /certs/client
+    DOCKER_TLS_VERIFY: "1"
+  commands:
+  - COMMIT_HASH=$(echo $CI_COMMIT_SHA | cut -c1-8)
+  - docker build -t registry.172.31.255.201.sslip.io/$DRONE_REPO_NAME:$COMMIT_HASH . --progress=plain
+  - docker push registry.172.31.255.201.sslip.io/$DRONE_REPO_NAME:$COMMIT_HASH
+
+volumes:
+- name: docker-certs
+  host:
+    path: /certs
