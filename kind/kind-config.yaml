@@ -4,7 +4,6 @@ networking:
   apiServerAddress: "127.0.0.1"
   apiServerPort: 6443
   ipFamily: ipv4
-  dnsSearch: []
   podSubnet: "10.244.0.0/16"
 nodes:
 # - role: worker
