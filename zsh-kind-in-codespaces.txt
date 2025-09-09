@@ -115,9 +115,9 @@ kubectl -n metallb-system wait --for=condition=ready pod -l app=metallb --timeou
 kubectl apply -f https://github.com/WiltonCarvalho/kubernetes/raw/main/kind-metal-lb-nginx-ingress/metallb-config.yaml
 kubectl -n metallb-system get ipaddresspools
 
-kubectl run httpd --image httpd:alpine --port 80 --labels app=httpd
+kubectl create deployment httpd --image httpd:alpine --port 80
 kubectl wait --for=condition=ready pod -l app=httpd
-kubectl expose pod httpd --name=httpd --type=LoadBalancer --load-balancer-ip=172.31.255.25 --labels app=httpd
+kubectl expose deployment httpd --name=httpd --type=LoadBalancer --port 80 --target-port 80 --load-balancer-ip=172.31.255.25 --labels app=httpd
 sleep 3
 curl 172.31.255.25
 
