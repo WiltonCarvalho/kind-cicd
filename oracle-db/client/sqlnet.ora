@@ -1,0 +1,11 @@
+WALLET_LOCATION =
+  (SOURCE =
+    (METHOD = FILE)
+    (METHOD_DATA =
+      (DIRECTORY = /opt/oracle/oradata/wallets/client1)
+    )
+  )
+
+SSL_CLIENT_AUTHENTICATION = TRUE
+SSL_SERVER_CERT_DN = "CN=server"
+SSL_VERSION = 1.2

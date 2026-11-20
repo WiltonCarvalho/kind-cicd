@@ -1,0 +1,94 @@
+docker-compose build --progress=plain
+docker-compose up -d
+
+docker-compose exec -it server bash
+
+mkdir -p /opt/oracle/oradata/wallets/server
+cd /opt/oracle/oradata/wallets
+
+orapki wallet create -wallet ./server -pwd changeit@123 -auto_login
+
+orapki wallet import_pkcs12 \
+  -pkcs12file /tmp/mtls/server.p12 \
+  -pkcs12pwd changeit \
+  -wallet ./server \
+  -pwd changeit@123
+
+orapki wallet add -wallet ./server -trusted_cert -cert /tmp/mtls/pki/ca.crt -pwd changeit@123
+
+docker-compose exec -it server bash
+mkdir -p /opt/oracle/oradata/wallets/client1
+cd /opt/oracle/oradata/wallets
+
+orapki wallet create -wallet ./client1 -pwd changeit@123 -auto_login
+
+orapki wallet import_pkcs12 \
+  -pkcs12file /tmp/mtls/client1.p12 \
+  -pkcs12pwd changeit \
+  -wallet ./client1 \
+  -pwd changeit@123
+
+orapki wallet add -wallet ./client1 -trusted_cert -cert /tmp/mtls/pki/ca.crt -pwd changeit@123
+
+#### vi /opt/oracle/oradata/dbconfig/FREE/listener.ora
+#### Add TCPS Listener
+(ADDRESS = (PROTOCOL = TCPS)(HOST = 0.0.0.0)(PORT = 2484))
+
+#### Add Wallet
+WALLET_LOCATION =
+  (SOURCE =
+    (METHOD = FILE)
+    (METHOD_DATA =
+      (DIRECTORY = /opt/oracle/oradata/wallets/server)
+    )
+  )
+SSL_CLIENT_AUTHENTICATION = TRUE
+SSL_VERSION = 1.2
+
+#### vi /opt/oracle/oradata/dbconfig/FREE/sqlnet.ora
+#### Add Wallet
+WALLET_LOCATION =
+  (SOURCE =
+    (METHOD = FILE)
+    (METHOD_DATA =
+      (DIRECTORY = /opt/oracle/oradata/wallets/server)
+    )
+  )
+SSL_CRL_PATH = /opt/oracle/oradata/wallets/server
+SSL_CERT_REVOCATION = REQUESTED
+SSL_CLIENT_AUTHENTICATION = TRUE
+SSL_VERSION = 1.2
+
+##################
+
+lsnrctl stop
+lsnrctl start
+lsnrctl status
+
+##################
+
+docker-compose exec -it client bash
+
+echo quit | sqlplus sys/passw0rd@//server:1521/FREEPDB1 as sysdba
+
+echo quit | sqlplus system/passw0rd@FREE_MTLS
+
+sqlplus sys/passw0rd@FREE_MTLS as sysdba @/tmp/human_resources/hr_install.sql
+
+sqlplus hr/hr_passw0rd@FREE_MTLS
+
+SELECT table_name FROM user_tables;
+
+SELECT COUNT(*) FROM employees;
+SELECT manager_id, department_id, department_name FROM departments WHERE manager_id = 103;
+
+##################
+./easyrsa revoke client1
+./easyrsa gen-crl
+chmod +r pki/crl.pem
+
+docker-compose exec -it server bash
+orapki crl display -crl /tmp/mtls/pki/crl.pem -wallet /opt/oracle/oradata/wallets/server -complete
+orapki crl hash -crl /tmp/mtls/pki/crl.pem -wallet /opt/oracle/oradata/wallets/server -copy /opt/oracle/oradata/wallets/server
+
+echo quit | sqlplus system/passw0rd@FREE_MTLS

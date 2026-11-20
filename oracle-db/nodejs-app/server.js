@@ -2,7 +2,7 @@ const oracledb = require('oracledb');
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
-const mypw = "test123456"
+const mypw = "hr_passw0rd"
 
 async function run() {
 

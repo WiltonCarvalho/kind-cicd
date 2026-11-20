@@ -5,7 +5,7 @@ ENV PATH="$PATH:$ORACLE_HOME"
 ENV LD_LIBRARY_PATH="$ORACLE_HOME"
 ENV TNS_ADMIN="$ORACLE_HOME/network/admin/"
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 COPY package*.json ./
 
@@ -29,7 +29,6 @@ RUN set -ex \
 
 RUN npm install
 
-COPY . .
+COPY server.js .
 
-EXPOSE 3000
 CMD [ "node", "server.js" ]

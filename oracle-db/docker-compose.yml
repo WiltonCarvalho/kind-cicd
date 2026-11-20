@@ -1,0 +1,31 @@
+volumes:
+  oracle-xe-data:
+services:
+  server:
+    image: container-registry.oracle.com/database/free:23.5.0.0
+    volumes:
+      - oracle-xe-data:/opt/oracle/oradata
+      - ./mtls:/tmp/mtls
+      - ./human_resources:/tmp/human_resources
+    environment:
+      - ORACLE_PDB=FREEPDB1
+      - ORACLE_PWD=passw0rd
+    ports:
+      - 1521:1521
+      - 2484:2484
+  client:
+    build: client
+    entrypoint:
+      - bash
+      - -c
+      - |
+        ln -sf /proc/self/fd/1 /tmp/stdout.log
+        ln -sf /proc/self/fd/2 /tmp/stderr.log
+        >/tmp/stdout.log 2>/tmp/stderr.log exec sleep infinity &
+        pid="$$!"
+        echo "[ Started PID $$pid ]"
+        trap "kill -term $$pid && echo '[ Stopped PID $$pid ]'" TERM
+        wait $$pid
+    volumes:
+      - oracle-xe-data:/opt/oracle/oradata
+      - ./human_resources:/tmp/human_resources
