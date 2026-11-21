@@ -16,7 +16,6 @@ orapki wallet import_pkcs12 \
 
 orapki wallet add -wallet ./server -trusted_cert -cert /tmp/mtls/pki/ca.crt -pwd changeit@123
 
-docker-compose exec -it server bash
 mkdir -p /opt/oracle/oradata/wallets/client1
 cd /opt/oracle/oradata/wallets
 
@@ -70,12 +69,15 @@ lsnrctl status
 docker-compose exec -it client bash
 
 echo quit | sqlplus sys/passw0rd@//server:1521/FREEPDB1 as sysdba
+echo quit | sqlplus sys/passw0rd@tcps://server:2484/FREEPDB1 as sysdba
+echo quit | sqlplus system/passw0rd@FREE_TCPS
 
-echo quit | sqlplus system/passw0rd@FREE_MTLS
+sqlplus sys/passw0rd@FREE_TCPS as sysdba @/tmp/human_resources/hr_install.sql
 
-sqlplus sys/passw0rd@FREE_MTLS as sysdba @/tmp/human_resources/hr_install.sql
+echo quit | sqlplus hr/hr_passw0rd@FREE_TCPS
+echo quit | sqlplus hr/hr_passw0rd@tcps://server:2484/FREEPDB1
 
-sqlplus hr/hr_passw0rd@FREE_MTLS
+sqlplus hr/hr_passw0rd@FREE_TCPS
 
 SELECT table_name FROM user_tables;
 
@@ -83,12 +85,15 @@ SELECT COUNT(*) FROM employees;
 SELECT manager_id, department_id, department_name FROM departments WHERE manager_id = 103;
 
 ##################
+cd mtls
 ./easyrsa revoke client1
 ./easyrsa gen-crl
 chmod +r pki/crl.pem
+
+docker-compose exec -it app node server.js
 
 docker-compose exec -it server bash
 orapki crl display -crl /tmp/mtls/pki/crl.pem -wallet /opt/oracle/oradata/wallets/server -complete
 orapki crl hash -crl /tmp/mtls/pki/crl.pem -wallet /opt/oracle/oradata/wallets/server -copy /opt/oracle/oradata/wallets/server
 
-echo quit | sqlplus system/passw0rd@FREE_MTLS
+docker-compose exec -it app node server.js

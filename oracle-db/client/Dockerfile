@@ -25,3 +25,19 @@ RUN set -ex \
     && echo quit | sqlplus /nolog
 
 COPY tnsnames.ora sqlnet.ora $TNS_ADMIN
+
+WORKDIR /app
+
+RUN set -ex \
+    && apt-get -q update \
+    && apt-get -q -y install --no-install-recommends openjdk-17-jdk-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY JdbcExample.java .
+# java -cp ".:ojdbc17.jar:oraclepki.jar" JdbcExample
+RUN set -ex \
+    && javac JdbcExample.java \
+    && curl -fsSL https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc17/23.26.4.0.0/ojdbc17-23.26.4.0.0.jar \
+        -o ojdbc17.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/com/oracle/database/security/oraclepki/23.26.4.0.0/oraclepki-23.26.4.0.0.jar \
+        -o oraclepki.jar

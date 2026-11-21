@@ -2,14 +2,12 @@ const oracledb = require('oracledb');
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
-const mypw = "hr_passw0rd"
-
 async function run() {
 
-    const connection = await oracledb.getConnection ({
-        user          : "hr",
-        password      : mypw,
-        connectString : "172.17.0.1:1521/TEST"
+    const connection = await oracledb.getConnection({
+        user          : process.env.DB_USER,
+        password      : process.env.DB_PASSWORD,
+        connectString : process.env.DB_CONNECT_STRING
     });
 
     const result = await connection.execute(
