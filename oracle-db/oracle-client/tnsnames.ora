@@ -1,0 +1,8 @@
+FREE_TCPS =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCPS)(HOST = server)(PORT = 2484))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = FREEPDB1)
+    )
+  )
