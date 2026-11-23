@@ -79,3 +79,25 @@ services:
         echo "[ Started PID $$pid ]"
         trap "kill -term $$pid && echo '[ Stopped PID $$pid ]'" TERM
         wait $$pid
+  dotnet:
+    # dotnet oracledb
+    # docker-compose exec -it dotnet dotnet OracleDbExample.dll
+    build: dotnet
+    restart: no
+    volumes:
+      - oracle-free-wallets:/opt/oracle/oradata/wallets
+    environment:
+      ORACLE_USER: "hr"
+      ORACLE_PASSWORD: "hr_passw0rd"
+      ORACLE_DATA_SOURCE: "tcps://server:2484/FREEPDB1?wallet_location=/opt/oracle/oradata/wallets/client1&ssl_server_dn_match=on"
+    entrypoint:
+      - bash
+      - -c
+      - |
+        ln -sf /proc/self/fd/1 /tmp/stdout.log
+        ln -sf /proc/self/fd/2 /tmp/stderr.log
+        >/tmp/stdout.log 2>/tmp/stderr.log exec sleep infinity &
+        pid="$$!"
+        echo "[ Started PID $$pid ]"
+        trap "kill -term $$pid && echo '[ Stopped PID $$pid ]'" TERM
+        wait $$pid
